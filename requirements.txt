@@ -1,0 +1,4 @@
+# Python 3.10/3.11 recommended for the OSKen + Mininet environment.
+os_ken==2.8.1
+pytest>=7,<10
+# Mininet and Open vSwitch are installed via the OS package manager.

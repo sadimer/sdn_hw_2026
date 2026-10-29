@@ -1,0 +1,6 @@
+{
+  "rules": [
+    {"src_ip": "10.0.0.1", "max_pps": 40, "block_seconds": 10},
+    {"src_ip": "10.0.0.2", "max_pps": 100, "block_seconds": 8}
+  ]
+}
