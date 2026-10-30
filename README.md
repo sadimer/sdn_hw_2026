@@ -38,22 +38,22 @@
 │   ├── monitor.json             # интервал измерения и файл метрик
 │   └── policies.json            # пороги и длительности блокировок
 ├── common/
-│   ├── forwarding.py            # ГОТОВО: L2 OpenFlow-коммутатор
-│   ├── ofp_helpers.py           # ГОТОВО: преобразование OFPFlowStats
-│   ├── models.py                # ГОТОВО: модели данных
-│   └── metrics.py               # ГОТОВО: экспорт JSON
+│   ├── forwarding.py   
+│   ├── ofp_helpers.py    
+│   ├── models.py        
+│   └── metrics.py               
 ├── tasks/
 │   ├── task_1/
-│   │   ├── task.py               # TODO: запрос и обработка FlowStats
-│   │   ├── monitor.py            # TODO: расчёт pps и bps
+│   │   ├── task.py              
+│   │   ├── monitor.py            
 │   │   └── mininet_cli.py
 │   └── task_2/
-│       ├── task.py               # TODO: применение блокирующих правил
-│       ├── policy.py             # TODO: проверка порогов
+│       ├── task.py               
+│       ├── policy.py             
 │       └── mininet_cli.py
 └── tests/
-    ├── unit/                    # открытые тесты (pytest)
-    └── integration/check_live.py # необязательный сетевой smoke-test
+    ├── unit/                    
+    └── integration/check_live.py
 ```
 
 **Изменять можно только** `tasks/task_1/monitor.py`, `tasks/task_1/task.py`, `tasks/task_2/policy.py` и `tasks/task_2/task.py`. Общее окружение и тесты менять нельзя. Добавлять собственные модули внутри `tasks/` разрешается.
@@ -195,7 +195,7 @@ bps = сумма положительных Δbyte_count * 8 / Δtime
 python3 -m pytest -q
 ```
 
-**До выполнения TODO тесты должны падать** — это ожидаемое поведение шаблона. Для успешного выполнения необходима реализация заданий.
+**До выполнения задания тесты должны падать** — это ожидаемое поведение шаблона. Для успешного выполнения необходима реализация заданий.
 
 ### Шаг 2. Запуск контроллера
 
@@ -244,7 +244,7 @@ watch -n 1 cat runtime/metrics.json
 sudo mn -c
 ```
 
-### Шаг 3. Необязательный сетевой smoke-test
+### Шаг 3. Cетевой smoke-test
 
 Сначала запустите соответствующий контроллер из шага 2, а затем в отдельном терминале:
 
