@@ -60,7 +60,7 @@
 
 ## Подготовка окружения
 
-Рекомендуется **Ubuntu 22.04 / Python 3.10 или 3.11 ** или аналогичная Linux-машина с Python 3.10 или 3.11, OVS и Mininet. Для сетевой эмуляции нужны Linux namespaces и права root; запуск на Windows/macOS без Linux VM не предусмотрен.
+Рекомендуется **Ubuntu 22.04 / Python 3.10 или 3.11** или аналогичная Linux-машина с Python 3.10 или 3.11, OVS и Mininet. Для сетевой эмуляции нужны Linux namespaces и права root; запуск на Windows/macOS без Linux VM не предусмотрен.
 
 ```bash
 sudo apt-get update
