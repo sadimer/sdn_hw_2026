@@ -16,7 +16,7 @@ from os_ken.controller import ofp_event
 from os_ken.controller.handler import MAIN_DISPATCHER, set_ev_cls
 from os_ken.lib import hub
 
-from common.forwarding import ForwardingSwitch
+from common.forwarding import FORWARD_COOKIE, FULL_COOKIE_MASK, ForwardingSwitch
 from common.metrics import MetricsPublisher
 from common.ofp_helpers import forwarding_counters
 from tasks.task_1.monitor import FlowRateTracker
@@ -29,7 +29,7 @@ class FlowMonitorApp(ForwardingSwitch):
         super().__init__(*args, **kwargs)
         self.tracker = FlowRateTracker()
         self.metrics = MetricsPublisher(ROOT / CONFIG['metrics_path'])
-        self._pending = {}  # optional: assemble OFP multipart replies by xid
+        self._pending = {}  
         self._poll_thread = hub.spawn(self._poll_loop)
 
     def on_switch_reset(self, dpid):
@@ -45,23 +45,51 @@ class FlowMonitorApp(ForwardingSwitch):
             hub.sleep(float(CONFIG['poll_interval']))
 
     def request_stats(self, datapath):
-        """TODO: periodically send OFPFlowStatsRequest to a switch.
+        dpid = datapath.id
+        now = time.monotonic()
+        timeout = max(float(CONFIG['poll_interval']) * 2.0, 2.0)
+        pending = self._pending.get(dpid)
+        if pending is not None and (now - pending['sent_at']) < timeout:
+            return
 
-        Request only the IPv4 forwarding rules (FORWARD_COOKIE) where possible.
-        Do not send a new request if the previous one is still outstanding,
-        unless it has timed out.
-        """
-        pass
+        ofp = datapath.ofproto
+        parser = datapath.ofproto_parser
+        req = parser.OFPFlowStatsRequest(
+            datapath=datapath, 
+            table_id=ofp.OFPTT_ALL,
+            out_port=ofp.OFPP_ANY, 
+            out_group=ofp.OFPG_ANY,
+            cookie=FORWARD_COOKIE,
+            cookie_mask=FULL_COOKIE_MASK,
+            match=parser.OFPMatch(),
+        )
+        datapath.set_xid(req)
+        self._pending[dpid] = {
+            'xid': req.xid,
+            'sent_at': now,
+            'stats': [],
+        }
+        datapath.send_msg(req)
 
     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
     def flow_stats_reply_handler(self, ev):
-        """TODO: process stats reply, including OFPMPF_REPLY_MORE fragments.
+        msg = ev.msg
+        datapath = msg.datapath
+        dpid = datapath.id
+        ofp = datapath.ofproto
 
-        Ignore late responses to obsolete requests. Use forwarding_counters()
-        to convert OFPFlowStats to FlowCounter objects. Then call:
-            self.publish_sample(dpid, time.monotonic(), flow_counters)
-        """
-        pass
+        pending = self._pending.get(dpid)
+        if pending is None or msg.xid != pending ['xid']:
+            return 
+        
+        pending['stats'].extend(msg.body)
+        if msg.flags & ofp.OFPMPF_REPLY_MORE:
+            return 
+
+        stats = pending['stats']
+        self._pending.pop(dpid, None)
+        self.publish_sample(dpid, time.monotonic(), forwarding_counters(stats))
+
 
     def publish_sample(self, dpid, timestamp, flow_counters):
         rates = self.tracker.update(dpid, timestamp, flow_counters)
@@ -69,7 +97,7 @@ class FlowMonitorApp(ForwardingSwitch):
         self.metrics.update(dpid, timestamp, rates, self.blocked_sources(dpid, timestamp))
         for ip, rate in sorted(rates.items()):
             self.logger.info('dpid=%s src=%s pps=%.2f bps=%.2f',
-                             dpid, ip, rate.pps, rate.bps)
+                         dpid, ip, rate.pps, rate.bps)
 
     def after_rates(self, dpid, timestamp, rates):
         """Task 2 uses this hook to react to anomalous activity."""
