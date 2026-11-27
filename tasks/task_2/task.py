@@ -11,6 +11,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from os_ken.lib.packet import ether_types
+
+from common.forwarding import BLOCK_PRIORITY
 from tasks.task_1.task import FlowMonitorApp
 from tasks.task_2.policy import PolicyEngine
 
@@ -28,20 +31,34 @@ class AnomalyDetectionApp(FlowMonitorApp):
             self.policy.reset(dpid)
 
     def after_rates(self, dpid, timestamp, rates):
-        """TODO: check rates using PolicyEngine and add OFP drop flows."""
-        pass
+        datapath = self.datapaths.get(dpid)
+        if datapath is None:
+            return
+        for decision in self.policy.evaluate(dpid, timestamp, rates):
+            self.install_block(datapath, decision.src_ip, decision.block_seconds)
+            self.logger.warning(
+                'Blocked dpid=%s src=%s for %ss',
+                dpid,
+                decision.src_ip, 
+                decision.block_seconds,
+            )
 
     def install_block(self, datapath, src_ip, seconds):
-        """TODO: send a higher-priority IPv4 src drop flow.
-
-        Requirements:
-        * match eth_type=0x0800 and ipv4_src=src_ip
-        * priority higher than the forwarding rules
-        * no output actions/instructions (drop)
-        * hard_timeout=seconds; block disappears automatically in OVS
-        * leave ARP and traffic of other sources untouched
-        """
-        pass
+        ofp = datapath.ofproto
+        parser = datapath.ofproto_parser
+        match = parser.OFPMatch(
+            eth_type=ether_types.ETH_TYPE_IP,
+            ipv4_src=src_ip,
+        )
+        mod = parser.OFPFlowMod(
+            datapath=datapath,
+            command=ofp.OFPFC_ADD,
+            priority=BLOCK_PRIORITY,
+            match=match,
+            instructions=[],
+            hard_timeout=int(seconds),
+        )
+        datapath.send_msg(mod)
 
     def blocked_sources(self, dpid, timestamp):
         return self.policy.active(dpid, timestamp)
